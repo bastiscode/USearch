@@ -38,9 +38,20 @@ scalar_kind_t rust_to_cpp_scalar(ScalarKind value) {
 }
 
 template <typename scalar_at>
-Matches search_(index_dense_t& index, scalar_at const* vec, size_t vec_dims, size_t count, bool exact = false) {
-    if (vec_dims != index.scalar_words())
+void validate_dimensions(index_dense_t& index, size_t vec_dims) {
+    size_t expected_dims;
+    if constexpr (std::is_same_v<scalar_at, b1x8_t>) {
+        expected_dims = index.dimensions() / 8;  // Binary: bytes
+    } else {
+        expected_dims = index.dimensions();      // Float/int: elements
+    }
+    if (vec_dims != expected_dims)
         throw std::invalid_argument("Vector length must match index dimensionality");
+}
+
+template <typename scalar_at>
+Matches search_(index_dense_t& index, scalar_at const* vec, size_t vec_dims, size_t count, bool exact = false) {
+    validate_dimensions<scalar_at>(index, vec_dims);
     Matches matches;
     matches.keys.reserve(count);
     matches.distances.reserve(count);
@@ -58,8 +69,7 @@ Matches search_(index_dense_t& index, scalar_at const* vec, size_t vec_dims, siz
 template <typename scalar_at, typename predicate_at>
 Matches filtered_search_(index_dense_t& index, scalar_at const* vec, size_t vec_dims, size_t count,
                          predicate_at&& predicate, bool exact = false) {
-    if (vec_dims != index.scalar_words())
-        throw std::invalid_argument("Vector length must match index dimensionality");
+    validate_dimensions<scalar_at>(index, vec_dims);
     Matches matches;
     matches.keys.reserve(count);
     matches.distances.reserve(count);
@@ -76,8 +86,7 @@ Matches filtered_search_(index_dense_t& index, scalar_at const* vec, size_t vec_
 }
 
 template <typename scalar_at> void add_(index_dense_t& index, vector_key_t key, scalar_at const* vec, size_t vec_dims) {
-    if (vec_dims != index.scalar_words())
-        throw std::invalid_argument("Vector length must match index dimensionality");
+    validate_dimensions<scalar_at>(index, vec_dims);
     index.add(key, vec).error.raise();
 }
 
