@@ -377,6 +377,7 @@ pub mod ffi {
             count: usize,
             filter: usize,
             filter_state: usize,
+            exact: bool,
         ) -> Result<Matches>;
         pub fn filtered_search_i8(
             self: &NativeIndex,
@@ -384,6 +385,7 @@ pub mod ffi {
             count: usize,
             filter: usize,
             filter_state: usize,
+            exact: bool,
         ) -> Result<Matches>;
         pub fn filtered_search_f16(
             self: &NativeIndex,
@@ -391,6 +393,7 @@ pub mod ffi {
             count: usize,
             filter: usize,
             filter_state: usize,
+            exact: bool,
         ) -> Result<Matches>;
         pub fn filtered_search_f32(
             self: &NativeIndex,
@@ -398,6 +401,7 @@ pub mod ffi {
             count: usize,
             filter: usize,
             filter_state: usize,
+            exact: bool,
         ) -> Result<Matches>;
         pub fn filtered_search_f64(
             self: &NativeIndex,
@@ -405,6 +409,7 @@ pub mod ffi {
             count: usize,
             filter: usize,
             filter_state: usize,
+            exact: bool,
         ) -> Result<Matches>;
 
         pub fn get_b1x8(self: &NativeIndex, key: u64, buffer: &mut [u8]) -> Result<usize>;
@@ -662,6 +667,7 @@ pub trait VectorType {
     /// - `count`: The maximum number of matches to return.
     /// - `filter`: A closure that takes a `Key` and returns `true` if the corresponding
     ///   vector should be included in the search results, or `false` otherwise.
+    /// - `exact`: If `true`, performs exact (brute force) search; if `false`, uses approximate HNSW search.
     ///
     /// # Returns
     /// - `Ok(ffi::Matches)` containing the matches that satisfy the filter.
@@ -671,6 +677,7 @@ pub trait VectorType {
         query: &[Self],
         count: usize,
         filter: F,
+        exact: bool,
     ) -> Result<ffi::Matches, cxx::Exception>
     where
         Self: Sized,
@@ -720,6 +727,7 @@ impl VectorType for f32 {
         query: &[Self],
         count: usize,
         filter: F,
+        exact: bool,
     ) -> Result<ffi::Matches, cxx::Exception>
     where
         Self: Sized,
@@ -736,7 +744,7 @@ impl VectorType for f32 {
         let closure_address: usize = &filter as *const F as usize;
         index
             .inner
-            .filtered_search_f32(query, count, trampoline_fn, closure_address)
+            .filtered_search_f32(query, count, trampoline_fn, closure_address, exact)
     }
 
     fn change_metric(
@@ -795,6 +803,7 @@ impl VectorType for i8 {
         query: &[Self],
         count: usize,
         filter: F,
+        exact: bool,
     ) -> Result<ffi::Matches, cxx::Exception>
     where
         Self: Sized,
@@ -811,7 +820,7 @@ impl VectorType for i8 {
         let closure_address: usize = &filter as *const F as usize;
         index
             .inner
-            .filtered_search_i8(query, count, trampoline_fn, closure_address)
+            .filtered_search_i8(query, count, trampoline_fn, closure_address, exact)
     }
     fn change_metric(
         index: &mut Index,
@@ -869,6 +878,7 @@ impl VectorType for f64 {
         query: &[Self],
         count: usize,
         filter: F,
+        exact: bool,
     ) -> Result<ffi::Matches, cxx::Exception>
     where
         Self: Sized,
@@ -885,7 +895,7 @@ impl VectorType for f64 {
         let closure_address: usize = &filter as *const F as usize;
         index
             .inner
-            .filtered_search_f64(query, count, trampoline_fn, closure_address)
+            .filtered_search_f64(query, count, trampoline_fn, closure_address, exact)
     }
     fn change_metric(
         index: &mut Index,
@@ -943,6 +953,7 @@ impl VectorType for f16 {
         query: &[Self],
         count: usize,
         filter: F,
+        exact: bool,
     ) -> Result<ffi::Matches, cxx::Exception>
     where
         Self: Sized,
@@ -962,6 +973,7 @@ impl VectorType for f16 {
             count,
             trampoline_fn,
             closure_address,
+            exact,
         )
     }
 
@@ -1021,6 +1033,7 @@ impl VectorType for b1x8 {
         query: &[Self],
         count: usize,
         filter: F,
+        exact: bool,
     ) -> Result<ffi::Matches, cxx::Exception>
     where
         Self: Sized,
@@ -1040,6 +1053,7 @@ impl VectorType for b1x8 {
             count,
             trampoline_fn,
             closure_address,
+            exact,
         )
     }
 
@@ -1172,6 +1186,7 @@ impl Index {
     /// * `query` - A slice containing the query vector data.
     /// * `count` - The maximum number of neighbors to search for.
     /// * `filter` - A closure that takes a `Key` and returns `true` if the corresponding vector should be included in the search results, or `false` otherwise.
+    /// * `exact` - If `true`, performs exact (brute force) search; if `false`, uses approximate HNSW search.
     ///
     /// # Returns
     ///
@@ -1181,11 +1196,12 @@ impl Index {
         query: &[T],
         count: usize,
         filter: F,
+        exact: bool,
     ) -> Result<ffi::Matches, cxx::Exception>
     where
         F: Fn(Key) -> bool,
     {
-        T::filtered_search(self, query, count, filter)
+        T::filtered_search(self, query, count, filter, exact)
     }
 
     /// Adds a vector with a specified key to the index.
