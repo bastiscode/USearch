@@ -1758,7 +1758,7 @@ mod tests {
         // Stateless filter: checks if the key is odd
         let is_odd = |key: Key| key % 2 == 1;
         let query = vec![0.2, 0.1, 0.2, 0.1, 0.3]; // Example query vector
-        let results = index.filtered_search(&query, 10, is_odd).unwrap();
+        let results = index.filtered_search(&query, 10, is_odd, false).unwrap();
         assert!(
             results.keys.iter().all(|&key| key % 2 == 1),
             "All keys must be odd"
@@ -1787,7 +1787,7 @@ mod tests {
         let stateful_filter = move |key: Key| filter_keys.contains(&key);
 
         let query = vec![0.2, 0.1, 0.2, 0.1, 0.3]; // Example query vector
-        let results = index.filtered_search(&query, 10, stateful_filter).unwrap();
+        let results = index.filtered_search(&query, 10, stateful_filter, false).unwrap();
 
         // Use the original `allowed_keys` for assertion
         assert!(
