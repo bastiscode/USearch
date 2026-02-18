@@ -44,6 +44,7 @@ fn main() {
                 "SIMSIMD_TARGET_SVE_I8",
                 "SIMSIMD_TARGET_SVE_F16",
                 "SIMSIMD_TARGET_SVE_BF16",
+                "SIMSIMD_TARGET_SVE2",
             ],
             _ => vec![
                 "SIMSIMD_TARGET_HASWELL",
@@ -51,6 +52,8 @@ fn main() {
                 "SIMSIMD_TARGET_ICE",
                 "SIMSIMD_TARGET_GENOA",
                 "SIMSIMD_TARGET_SAPPHIRE",
+                "SIMSIMD_TARGET_TURIN",
+                "SIMSIMD_TARGET_SIERRA",
             ],
         };
     } else {
@@ -91,12 +94,24 @@ fn main() {
 
     let base_build = build.clone();
 
+    // Keep track of removed flags to explicitly disable them
+    let mut removed_flags: Vec<&str> = Vec::new();
+
     let mut pop_flag = None;
     loop {
         let mut sub_build = base_build.clone();
+
+        // Enable remaining backends
         for flag in &flags_to_try {
             sub_build.define(flag, "1");
         }
+
+        // Explicitly disable removed backends
+        // This is critical because simsimd/c/lib.c auto-enables undefined backends!
+        for flag in &removed_flags {
+            sub_build.define(flag, "0");
+        }
+
         let result = sub_build.try_compile("usearch");
         if result.is_err() {
             if let Some(flag) = pop_flag {
@@ -105,11 +120,13 @@ fn main() {
                     flag
                 );
             } else if !flags_to_try.is_empty() {
-                print!("cargo:warning=Failed to compile with all SIMD backends...");
+                println!("cargo:warning=Failed to compile with all SIMD backends...");
             }
 
             pop_flag = flags_to_try.pop();
-            if pop_flag.is_none() {
+            if let Some(flag) = pop_flag {
+                removed_flags.push(flag);
+            } else {
                 result.unwrap();
             }
         } else {
